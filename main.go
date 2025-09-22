@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 )
 
 func main() {
@@ -14,18 +15,23 @@ func main() {
 	const (
 		UsdToEur = 0.92
 		UsdToRub = 95.50
-		EurToRub = UsdToRub / UsdToEur
 	)
 
-	supported := []string{"USD", "EUR", "RUB"}
+	rates := map[string]float64{
+		"USD": 1.0,
+		"EUR": UsdToEur,
+		"RUB": UsdToRub,
+	}
+
+	supported := keys(rates)
 
 	fmt.Println("__Конвертер валют__")
 	for {
-		src := getCurrencyInput("Введите исходную валюту", supported)
+		src := strings.ToUpper(getCurrencyInput("Введите исходную валюту", supported))
 		amt := getAmountInput("Введите сумму для конвертации")
-		dst := getCurrencyInput("Введите целевую валюту", supported)
+		dst := strings.ToUpper(getCurrencyInput("Введите целевую валюту", supported))
 
-		result, err := calculateRate(amt, src, dst, UsdToEur, UsdToRub, EurToRub)
+		result, err := calculateRateMap(amt, src, dst, rates)
 		if err != nil {
 			fmt.Println("Ошибка:", err)
 		} else {
@@ -45,12 +51,12 @@ func getCurrencyInput(prompt string, options []string) string {
 		fmt.Print("): ")
 
 		var cur string
-		fmt.Scan(&cur) // читаем без TrimSpace — Scan сам уберет пробелы и \n
-
-		if isSupported(cur, options) {
+		fmt.Scan(&cur)
+		cur = strings.TrimSpace(cur)
+		if isSupported(strings.ToUpper(cur), options) {
 			return cur
 		}
-		fmt.Println("Неизвестная валюта. Попробуйте снова (USD, EUR, RUB).")
+		fmt.Println("Неизвестная валюта. Попробуйте снова (", strings.Join(options, ", "), ").")
 	}
 }
 
@@ -76,36 +82,16 @@ func isSupported(cur string, options []string) bool {
 	return false
 }
 
-func calculateRate(amount float64, from string, to string, UsdToEur, UsdToRub, EurToRub float64) (float64, error) {
+func calculateRateMap(amount float64, from, to string, rates map[string]float64) (float64, error) {
+	fromRate, okFrom := rates[from]
+	toRate, okTo := rates[to]
+	if !okFrom || !okTo {
+		return 0, fmt.Errorf("валюта не поддерживается (from=%s, to=%s)", from, to)
+	}
 	if from == to {
 		return amount, nil
 	}
-
-	switch from {
-	case "USD":
-		switch to {
-		case "EUR":
-			return amount * UsdToEur, nil
-		case "RUB":
-			return amount * UsdToRub, nil
-		}
-	case "EUR":
-		switch to {
-		case "USD":
-			return amount / UsdToEur, nil
-		case "RUB":
-			return amount * EurToRub, nil
-		}
-	case "RUB":
-		switch to {
-		case "USD":
-			return amount / UsdToRub, nil
-		case "EUR":
-			usd := amount / UsdToRub
-			return usd * UsdToEur, nil
-		}
-	}
-	return 0, fmt.Errorf("пара %s -> %s не поддерживается", from, to)
+	return amount / fromRate * toRate, nil
 }
 
 func checkRepeatCalculation() bool {
@@ -127,4 +113,12 @@ func printOptions(opts []string) {
 			fmt.Print(", ")
 		}
 	}
+}
+
+func keys(m map[string]float64) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	return out
 }
