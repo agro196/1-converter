@@ -23,7 +23,7 @@ func main() {
 		"RUB": UsdToRub,
 	}
 
-	supported := keys(rates)
+	supported := keysPtr(&rates)
 
 	fmt.Println("__Конвертер валют__")
 	for {
@@ -31,7 +31,7 @@ func main() {
 		amt := getAmountInput("Введите сумму для конвертации")
 		dst := strings.ToUpper(getCurrencyInput("Введите целевую валюту", supported))
 
-		result, err := calculateRateMap(amt, src, dst, rates)
+		result, err := calculateRateMap(amt, src, dst, &rates)
 		if err != nil {
 			fmt.Println("Ошибка:", err)
 		} else {
@@ -82,9 +82,10 @@ func isSupported(cur string, options []string) bool {
 	return false
 }
 
-func calculateRateMap(amount float64, from, to string, rates map[string]float64) (float64, error) {
-	fromRate, okFrom := rates[from]
-	toRate, okTo := rates[to]
+func calculateRateMap(amount float64, from, to string, rates *map[string]float64) (float64, error) {
+	m := *rates
+	fromRate, okFrom := m[from]
+	toRate, okTo := m[to]
 	if !okFrom || !okTo {
 		return 0, fmt.Errorf("валюта не поддерживается (from=%s, to=%s)", from, to)
 	}
@@ -115,9 +116,9 @@ func printOptions(opts []string) {
 	}
 }
 
-func keys(m map[string]float64) []string {
-	out := make([]string, 0, len(m))
-	for k := range m {
+func keysPtr(m *map[string]float64) []string {
+	out := make([]string, 0, len(*m))
+	for k := range *m {
 		out = append(out, k)
 	}
 	return out
